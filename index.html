@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isometric Projection - Presentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg2: #1a1a1a;
+    --fg: #f0ece4;
+    --muted: #8a8578;
+    --accent: #e8a824;
+    --accent2: #d4552a;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --glass: rgba(15,15,15,0.85);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Background canvas for isometric grid */
+  #bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Ambient glow blobs */
+  .glow-blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-blob.a { width: 500px; height: 500px; background: var(--accent); top: -100px; right: -100px; }
+  .glow-blob.b { width: 400px; height: 400px; background: var(--accent2); bottom: -80px; left: -80px; }
+
+  /* Slide container */
+  .presentation {
+    position: relative;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    opacity: 0;
+    transform: translateX(80px) scale(0.96);
+    transition: opacity 0.7s cubic-bezier(0.4,0,0.2,1), transform 0.7s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    pointer-events: all;
+  }
+  .slide.exit-left {
+    opacity: 0;
+    transform: translateX(-80px) scale(0.96);
+  }
+
+  .slide-inner {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .slide-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .slide-visual {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Typography */
+  .slide-number {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .slide-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: clamp(32px, 4vw, 56px);
+    line-height: 1.1;
+    margin-bottom: 24px;
+    color: var(--fg);
+  }
+
+  .slide-subtitle {
+    font-size: clamp(16px, 1.8vw, 22px);
+    font-weight: 300;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 32px;
+  }
+
+  .slide-text {
+    font-size: 16px;
+    line-height: 1.8;
+    color: rgba(240,236,228,0.75);
+    font-weight: 400;
+  }
+
+  .slide-text strong {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Bullet list */
+  .bullet-list {
+    list-style: none;
+    margin-top: 16px;
+  }
+  .bullet-list li {
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 14px;
+    font-size: 16px;
+    line-height: 1.6;
+    color: rgba(240,236,228,0.8);
+  }
+  .bullet-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 9px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--accent);
+    transform: rotate(45deg);
+  }
+
+  /* Cards */
+  .info-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    backdrop-filter: blur(10px);
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .info-card:hover {
+    border-color: var(--accent);
+    transform: translateX(6px);
+  }
+  .info-card .card-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .info-card .card-value {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--fg);
+  }
+
+  /* SVG illustration styles */
+  .iso-svg {
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+  }
+  .iso-svg line, .iso-svg polyline, .iso-svg polygon, .iso-svg path {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Title slide specific */
+  .title-slide .slide-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 40px;
+  }
+  .title-slide .slide-title {
+    font-size: clamp(48px, 6vw, 86px);
+    letter-spacing: -1px;
+  }
+  .title-slide .accent-line {
+    width: 80px;
+    height: 3px;
+    background: var(--accent);
+    margin: 0 auto;
+  }
+  .title-slide .slide-subtitle {
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: clamp(16px, 1.6vw, 20px);
+  }
+
+  /* Navigation */
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    background: linear-gradient(transparent, rgba(15,15,15,0.95));
+  }
+
+  .nav-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--glass);
+    color: var(--fg);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    backdrop-filter: blur(10px);
+  }
+  .nav-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: scale(1.1);
+  }
+  .nav-btn:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+    transform: none;
+    border-color: var(--border);
+    color: var(--fg);
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1.5px solid var(--muted);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.4s;
+  }
+  .dot.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: scale(1.3);
+    box-shadow: 0 0 12px rgba(232,168,36,0.4);
+  }
+  .dot:hover:not(.active) {
+    border-color: var(--fg);
+  }
+
+  .slide-counter {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 1px;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  /* Highlight box */
+  .highlight-box {
+    background: linear-gradient(135deg, rgba(232,168,36,0.08), rgba(212,85,42,0.06));
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 0 10px 10px 0;
+    margin: 20px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(240,236,228,0.85);
+  }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 14px;
+  }
+  .compare-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table td {
+    padding: 10px 14px;
+    color: rgba(240,236,228,0.75);
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { color: var(--fg); }
+
+  /* Steps list */
+  .steps {
+    counter-reset: step;
+    list-style: none;
+    margin-top: 16px;
+  }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 50px;
+    margin-bottom: 18px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: rgba(240,236,228,0.8);
+  }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* Key shortcut hint */
+  .key-hint {
+    position: fixed;
+    top: 24px;
+    right: 32px;
+    z-index: 100;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .key-hint:hover { opacity: 1; }
+  .key-hint kbd {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-family: inherit;
+    font-size: 11px;
+    margin: 0 2px;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .slide { padding: 40px 30px; }
+    .slide-inner { flex-direction: column; gap: 30px; }
+    .slide-visual { order: -1; }
+    .iso-svg { max-width: 280px; }
+    .nav-bar { padding: 16px 20px; }
+    .key-hint { display: none; }
+  }
+
+  /* Reduce motion */
+  @media (prefers-reduced-motion: reduce) {
+    .slide { transition: opacity 0.3s; transform: none !important; }
+    .slide.active { transform: none !important; }
+    .slide.exit-left { transform: none !important; }
+    .info-card { transition: none; }
+  }
+
+  /* Floating tag */
+  .tag {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .tag.definitions { background: rgba(232,168,36,0.12); color: var(--accent); }
+  .tag.concept { background: rgba(212,85,42,0.12); color: var(--accent2); }
+  .tag.method { background: rgba(100,200,140,0.12); color: #64c88c; }
+
+  /* Diagram label */
+  .diagram-label {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* Animate in elements on active slide */
+  .slide.active .slide-number { animation: fadeUp 0.5s 0.1s both; }
+  .slide.active .slide-title { animation: fadeUp 0.5s 0.2s both; }
+  .slide.active .slide-subtitle { animation: fadeUp 0.5s 0.3s both; }
+  .slide.active .slide-text { animation: fadeUp 0.5s 0.35s both; }
+  .slide.active .highlight-box { animation: fadeUp 0.5s 0.4s both; }
+  .slide.active .bullet-list { animation: fadeUp 0.5s 0.4s both; }
+  .slide.active .info-cards { animation: fadeUp 0.5s 0.4s both; }
+  .slide.active .compare-table { animation: fadeUp 0.5s 0.4s both; }
+  .slide.active .steps { animation: fadeUp 0.5s 0.4s both; }
+  .slide.active .slide-visual { animation: fadeScale 0.6s 0.3s both; }
+  .slide.active .tag { animation: fadeUp 0.5s 0.05s both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* Title slide special animation */
+  .title-slide.active .accent-line { animation: expandLine 0.8s 0.4s both; }
+  @keyframes expandLine {
+    from { width: 0; }
+    to { width: 80px; }
+  }
+
+  /* Pulsing dot on title slide SVG */
+  @keyframes pulse {
+    0%, 100% { r: 4; opacity: 1; }
+    50% { r: 7; opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div class="glow-blob a"></div>
+<div class="glow-blob b"></div>
+
+<div class="key-hint">
+  <kbd>&larr;</kbd> <kbd>&rarr;</kbd> or click to navigate
+</div>
+
+<div class="presentation" id="presentation">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide title-slide active" data-slide="0">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <div class="slide-number">Engineering Graphics</div>
+        <h1 class="slide-title">Isometric<br>Projection</h1>
+        <div class="accent-line"></div>
+        <p class="slide-subtitle">A comprehensive guide to understanding isometric views, scales, lines, planes, and construction techniques from orthographic projections.</p>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 300 280" fill="none">
+          <!-- Isometric cube -->
+          <polygon points="150,40 250,98 150,156 50,98" fill="rgba(232,168,36,0.1)" stroke="#e8a824" stroke-width="1.5"/>
+          <polygon points="150,156 250,98 250,198 150,240" fill="rgba(212,85,42,0.08)" stroke="#d4552a" stroke-width="1.5"/>
+          <polygon points="150,156 50,98 50,198 150,240" fill="rgba(240,236,228,0.04)" stroke="rgba(240,236,228,0.3)" stroke-width="1.5"/>
+          <!-- Axis lines -->
+          <line x1="150" y1="240" x2="150" y2="260" stroke="rgba(240,236,228,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+          <line x1="150" y1="240" x2="130" y2="255" stroke="rgba(240,236,228,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+          <line x1="150" y1="240" x2="170" y2="255" stroke="rgba(240,236,228,0.2)" stroke-width="1" stroke-dasharray="4,3"/>
+          <!-- Vertex dots -->
+          <circle cx="150" cy="40" r="4" fill="#e8a824"><animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/></circle>
+          <circle cx="250" cy="98" r="3" fill="#d4552a"/>
+          <circle cx="50" cy="98" r="3" fill="rgba(240,236,228,0.5)"/>
+          <circle cx="150" cy="240" r="3" fill="rgba(240,236,228,0.5)"/>
+          <!-- Labels -->
+          <text x="150" y="30" text-anchor="middle" fill="#e8a824" font-size="11" font-family="Source Sans 3">Z</text>
+          <text x="262" y="102" fill="#d4552a" font-size="11" font-family="Source Sans 3">X</text>
+          <text x="32" y="102" fill="rgba(240,236,228,0.5)" font-size="11" font-family="Source Sans 3">Y</text>
+          <!-- Hidden edges -->
+          <line x1="150" y1="40" x2="150" y2="156" stroke="rgba(240,236,228,0.1)" stroke-width="1" stroke-dasharray="6,4"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: Introduction -->
+  <div class="slide" data-slide="1">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag definitions">Definitions</span>
+        <div class="slide-number">Slide 02</div>
+        <h2 class="slide-title">Introduction to Isometric Projection</h2>
+        <p class="slide-text">
+          <strong>Isometric projection</strong> is a method of visually representing three-dimensional objects in two dimensions. It belongs to the family of <strong>axonometric projections</strong>, where the object is rotated along one or more axes relative to the plane of projection.
+        </p>
+        <div class="highlight-box">
+          In isometric projection, the three coordinate axes appear equally foreshortened, and the angle between any two axes is exactly <strong>120 degrees</strong>. This creates a visually balanced and measurable representation.
+        </div>
+        <ul class="bullet-list">
+          <li>The word "isometric" comes from Greek: <strong>iso</strong> (equal) + <strong>metron</strong> (measure)</li>
+          <li>All three axes are equally inclined to the plane of projection at <strong>~35.27 degrees</strong></li>
+          <li>It is one of the three types of axonometric projections: isometric, dimetric, and trimetric</li>
+        </ul>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 340 300" fill="none">
+          <!-- Projection plane -->
+          <rect x="30" y="20" width="280" height="260" rx="8" fill="rgba(240,236,228,0.02)" stroke="rgba(240,236,228,0.1)" stroke-width="1"/>
+          <text x="170" y="16" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="10" font-family="Source Sans 3">PLAN OF PROJECTION</text>
+          <!-- Isometric axes from center -->
+          <line x1="170" y1="150" x2="170" y2="50" stroke="#e8a824" stroke-width="1.8" marker-end="url(#arrowGold)"/>
+          <line x1="170" y1="150" x2="257" y2="200" stroke="#d4552a" stroke-width="1.8" marker-end="url(#arrowRed)"/>
+          <line x1="170" y1="150" x2="83" y2="200" stroke="rgba(240,236,228,0.5)" stroke-width="1.8" marker-end="url(#arrowWhite)"/>
+          <!-- 120 degree arcs -->
+          <path d="M 170 120 A 30 30 0 0 1 196 134" fill="none" stroke="rgba(232,168,36,0.4)" stroke-width="1"/>
+          <text x="190" y="118" fill="#e8a824" font-size="10" font-family="Source Sans 3">120</text>
+          <path d="M 144 134 A 30 30 0 0 1 170 120" fill="none" stroke="rgba(240,236,228,0.3)" stroke-width="1"/>
+          <text x="138" y="118" fill="rgba(240,236,228,0.4)" font-size="10" font-family="Source Sans 3">120</text>
+          <path d="M 196 134 A 30 30 0 0 1 144 134" fill="none" stroke="rgba(212,85,42,0.4)" stroke-width="1"/>
+          <text x="170" y="168" text-anchor="middle" fill="#d4552a" font-size="10" font-family="Source Sans 3">120</text>
+          <!-- Axis labels -->
+          <text x="170" y="42" text-anchor="middle" fill="#e8a824" font-size="13" font-weight="700" font-family="Source Sans 3">Z</text>
+          <text x="268" y="208" fill="#d4552a" font-size="13" font-weight="700" font-family="Source Sans 3">X</text>
+          <text x="68" y="208" fill="rgba(240,236,228,0.6)" font-size="13" font-weight="700" font-family="Source Sans 3">Y</text>
+          <!-- Origin dot -->
+          <circle cx="170" cy="150" r="4" fill="var(--fg)"/>
+          <text x="178" y="160" fill="var(--muted)" font-size="10" font-family="Source Sans 3">O</text>
+          <!-- Arrow markers -->
+          <defs>
+            <marker id="arrowGold" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#e8a824"/></marker>
+            <marker id="arrowRed" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#d4552a"/></marker>
+            <marker id="arrowWhite" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="rgba(240,236,228,0.5)"/></marker>
+          </defs>
+        </svg>
+        <div class="diagram-label">Isometric Axes with 120 degree separation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Isometric Lines -->
+  <div class="slide" data-slide="2">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag concept">Concept</span>
+        <div class="slide-number">Slide 03</div>
+        <h2 class="slide-title">Isometric Lines</h2>
+        <p class="slide-text">
+          <strong>Isometric lines</strong> are lines that are parallel to any of the three isometric axes. These are the most fundamental elements in isometric drawing since they form the skeleton of every isometric shape.
+        </p>
+        <div class="info-cards">
+          <div class="info-card">
+            <div class="card-label">Direction</div>
+            <div class="card-value">Parallel to one of the three isometric axes (X, Y, or Z)</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Foreshortening</div>
+            <div class="card-value">All isometric lines are equally foreshortened to ~82% of true length</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Angles on Drawing</div>
+            <div class="card-value">They appear at 30 degrees or 90 degrees (vertical) to the horizontal baseline</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Measurement</div>
+            <div class="card-value">True measurements can only be made along isometric lines using isometric scale</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 340 300" fill="none">
+          <!-- Grid base line -->
+          <line x1="30" y1="220" x2="310" y2="220" stroke="rgba(240,236,228,0.08)" stroke-width="1"/>
+          <!-- Isometric lines from origin -->
+          <!-- Vertical (Z) -->
+          <line x1="100" y1="220" x2="100" y2="60" stroke="#e8a824" stroke-width="2.5"/>
+          <text x="86" y="55" fill="#e8a824" font-size="12" font-weight="700" font-family="Source Sans 3">Vertical</text>
+          <text x="86" y="70" fill="#e8a824" font-size="10" font-family="Source Sans 3">(90 to base)</text>
+          <!-- 30 deg right (X) -->
+          <line x1="100" y1="220" x2="220" y2="150" stroke="#d4552a" stroke-width="2.5"/>
+          <text x="224" y="148" fill="#d4552a" font-size="12" font-weight="700" font-family="Source Sans 3">30 right</text>
+          <!-- 30 deg left (Y) -->
+          <line x1="100" y1="220" x2="220" y2="290" stroke="rgba(240,236,228,0.5)" stroke-width="2.5"/>
+          <text x="224" y="294" fill="rgba(240,236,228,0.6)" font-size="12" font-weight="700" font-family="Source Sans 3">30 left</text>
+          <!-- Parallel lines (also isometric) -->
+          <line x1="140" y1="197" x2="140" y2="100" stroke="#e8a824" stroke-width="1" stroke-dasharray="6,4" opacity="0.5"/>
+          <line x1="140" y1="197" x2="230" y2="145" stroke="#d4552a" stroke-width="1" stroke-dasharray="6,4" opacity="0.5"/>
+          <text x="148" y="92" fill="rgba(232,168,36,0.5)" font-size="9" font-family="Source Sans 3">parallel to Z</text>
+          <text x="234" y="140" fill="rgba(212,85,42,0.5)" font-size="9" font-family="Source Sans 3">parallel to X</text>
+          <!-- 30 degree angle indicator -->
+          <path d="M 130 220 A 30 30 0 0 1 126 204" fill="none" stroke="#d4552a" stroke-width="1" opacity="0.6"/>
+          <text x="132" y="212" fill="#d4552a" font-size="10" font-family="Source Sans 3">30</text>
+          <path d="M 130 220 A 30 30 0 0 0 126 236" fill="none" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="112" y="240" fill="rgba(240,236,228,0.4)" font-size="10" font-family="Source Sans 3">30</text>
+          <!-- Origin -->
+          <circle cx="100" cy="220" r="4" fill="var(--fg)"/>
+          <text x="84" y="234" fill="var(--muted)" font-size="11" font-family="Source Sans 3">O</text>
+        </svg>
+        <div class="diagram-label">Three directions of isometric lines</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Isometric Planes -->
+  <div class="slide" data-slide="3">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag concept">Concept</span>
+        <div class="slide-number">Slide 04</div>
+        <h2 class="slide-title">Isometric Planes</h2>
+        <p class="slide-text">
+          <strong>Isometric planes</strong> are planes that contain any two isometric axes. Any plane parallel to an isometric plane is also an isometric plane. There are three principal isometric planes.
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Isometric Horizontal Plane:</strong> Contains the X and Y axes. Appears as a rhombus with angles of 60 and 120 degrees</li>
+          <li><strong>Isometric Left Plane:</strong> Contains the Y and Z axes. Appears as a rhombus inclined to the left</li>
+          <li><strong>Isometric Right Plane:</strong> Contains the X and Z axes. Appears as a rhombus inclined to the right</li>
+        </ul>
+        <div class="highlight-box">
+          Circles lying in isometric planes appear as <strong>ellipses</strong> in isometric projection. The standard isometric ellipse has a major to minor axis ratio of approximately <strong>1.73 : 1</strong>.
+        </div>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 340 300" fill="none">
+          <!-- Isometric cube showing three planes -->
+          <!-- Top plane (XY) -->
+          <polygon points="170,80 260,132 170,184 80,132" fill="rgba(232,168,36,0.12)" stroke="#e8a824" stroke-width="1.5"/>
+          <!-- Right plane (XZ) -->
+          <polygon points="170,184 260,132 260,232 170,260" fill="rgba(212,85,42,0.1)" stroke="#d4552a" stroke-width="1.5"/>
+          <!-- Left plane (YZ) -->
+          <polygon points="170,184 80,132 80,232 170,260" fill="rgba(240,236,228,0.05)" stroke="rgba(240,236,228,0.35)" stroke-width="1.5"/>
+          <!-- Labels for planes -->
+          <text x="170" y="138" text-anchor="middle" fill="#e8a824" font-size="12" font-weight="600" font-family="Source Sans 3">XY Plane</text>
+          <text x="170" y="152" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">(Horizontal)</text>
+          <text x="220" y="196" text-anchor="middle" fill="#d4552a" font-size="11" font-weight="600" font-family="Source Sans 3">XZ Plane</text>
+          <text x="220" y="208" text-anchor="middle" fill="#d4552a" font-size="9" font-family="Source Sans 3">(Right)</text>
+          <text x="118" y="196" text-anchor="middle" fill="rgba(240,236,228,0.6)" font-size="11" font-weight="600" font-family="Source Sans 3">YZ Plane</text>
+          <text x="118" y="208" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">(Left)</text>
+          <!-- Ellipse on top plane -->
+          <ellipse cx="170" cy="132" rx="35" ry="20" fill="none" stroke="#e8a824" stroke-width="1" stroke-dasharray="4,3" transform="rotate(-30 170 132)"/>
+          <text x="170" y="110" text-anchor="middle" fill="rgba(232,168,36,0.5)" font-size="8" font-family="Source Sans 3">Circle appears as ellipse</text>
+        </svg>
+        <div class="diagram-label">Three principal isometric planes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Non-Isometric Lines and Planes -->
+  <div class="slide" data-slide="4">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag concept">Concept</span>
+        <div class="slide-number">Slide 05</div>
+        <h2 class="slide-title">Non-Isometric Lines and Planes</h2>
+        <p class="slide-text">
+          <strong>Non-isometric lines</strong> are lines that are not parallel to any of the three isometric axes. They do not appear in their true length and cannot be measured directly with the isometric scale.
+        </p>
+        <div class="info-cards">
+          <div class="info-card">
+            <div class="card-label">Non-Isometric Lines</div>
+            <div class="card-value">Lines inclined to all three isometric axes. Must be located by finding the endpoints using isometric coordinates.</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Non-Isometric Planes</div>
+            <div class="card-value">Planes not parallel to any isometric plane. Appear as general quadrilaterals, not rhombuses.</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">Key Technique</div>
+            <div class="card-value">Box method: enclose the object in an isometric box, then locate non-isometric features by coordinates.</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 340 300" fill="none">
+          <!-- Isometric box outline -->
+          <polygon points="120,70 240,140 120,210 0,140" fill="rgba(240,236,228,0.02)" stroke="rgba(240,236,228,0.15)" stroke-width="1"/>
+          <polygon points="120,210 240,140 240,240 120,270" fill="rgba(240,236,228,0.02)" stroke="rgba(240,236,228,0.15)" stroke-width="1"/>
+          <polygon points="120,210 0,140 0,240 120,270" fill="rgba(240,236,228,0.02)" stroke="rgba(240,236,228,0.15)" stroke-width="1"/>
+          <!-- Non-isometric line (diagonal on face) -->
+          <line x1="0" y1="140" x2="240" y2="140" stroke="#d4552a" stroke-width="2.5"/>
+          <text x="120" y="132" text-anchor="middle" fill="#d4552a" font-size="10" font-weight="600" font-family="Source Sans 3">Non-isometric line</text>
+          <!-- Another non-isometric line -->
+          <line x1="0" y1="140" x2="120" y2="270" stroke="rgba(100,200,140,0.7)" stroke-width="2"/>
+          <text x="28" y="218" fill="rgba(100,200,140,0.8)" font-size="9" font-family="Source Sans 3" transform="rotate(-61 28 218)">Non-iso line</text>
+          <!-- Isometric lines for comparison -->
+          <line x1="0" y1="140" x2="120" y2="210" stroke="rgba(240,236,228,0.3)" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <line x1="0" y1="140" x2="120" y2="70" stroke="rgba(240,236,228,0.3)" stroke-width="1.5" stroke-dasharray="6,4"/>
+          <text x="42" y="166" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">isometric</text>
+          <!-- Endpoint markers -->
+          <circle cx="0" cy="140" r="3" fill="#d4552a"/>
+          <circle cx="240" cy="140" r="3" fill="#d4552a"/>
+          <circle cx="120" cy="270" r="3" fill="rgba(100,200,140,0.7)"/>
+          <!-- Annotation -->
+          <text x="120" y="295" text-anchor="middle" fill="var(--muted)" font-size="9" font-family="Source Sans 3">Dashed = isometric | Solid colored = non-isometric</text>
+        </svg>
+        <div class="diagram-label">Isometric vs non-isometric lines</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: Isometric Scale -->
+  <div class="slide" data-slide="5">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag definitions">Definitions</span>
+        <div class="slide-number">Slide 06</div>
+        <h2 class="slide-title">Isometric Scale</h2>
+        <p class="slide-text">
+          In true isometric projection, all lengths along the isometric axes are foreshortened to approximately <strong>81.65%</strong> of their true length. The <strong>isometric scale</strong> is used to convert true lengths to isometric lengths.
+        </p>
+        <div class="highlight-box">
+          <strong>Isometric Scale Factor = cos(35.27) = 0.8165</strong><br>
+          A 100 mm true length measures only ~81.65 mm on the isometric scale.
+        </div>
+        <ul class="bullet-list">
+          <li><strong>Isometric Projection:</strong> Uses isometric scale (foreshortened) — theoretically accurate but less common in practice</li>
+          <li><strong>Isometric View/Drawing:</strong> Uses true scale (no foreshortening) — slightly enlarged but easier to construct</li>
+          <li>The isometric scale is constructed by drawing lines from true-scale divisions at 45 degrees to the isometric axis direction</li>
+        </ul>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 360 280" fill="none">
+          <!-- True scale line (horizontal) -->
+          <line x1="30" y1="50" x2="330" y2="50" stroke="rgba(240,236,228,0.3)" stroke-width="1.5"/>
+          <text x="30" y="40" fill="rgba(240,236,228,0.5)" font-size="10" font-weight="600" font-family="Source Sans 3">TRUE SCALE</text>
+          <!-- True scale divisions -->
+          <line x1="30" y1="46" x2="30" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="30" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">0</text>
+          <line x1="90" y1="46" x2="90" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="90" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">20</text>
+          <line x1="150" y1="46" x2="150" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="150" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">40</text>
+          <line x1="210" y1="46" x2="210" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="210" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">60</text>
+          <line x1="270" y1="46" x2="270" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="270" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">80</text>
+          <line x1="330" y1="46" x2="330" y2="54" stroke="rgba(240,236,228,0.4)" stroke-width="1"/>
+          <text x="330" y="66" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">100</text>
+
+          <!-- Construction lines (45 deg from true scale to isometric line) -->
+          <line x1="90" y1="50" x2="103.4" y2="163.4" stroke="rgba(240,236,228,0.1)" stroke-width="0.8" stroke-dasharray="3,3"/>
+          <line x1="150" y1="50" x2="163.4" y2="163.4" stroke="rgba(240,236,228,0.1)" stroke-width="0.8" stroke-dasharray="3,3"/>
+          <line x1="210" y1="50" x2="223.4" y2="163.4" stroke="rgba(240,236,228,0.1)" stroke-width="0.8" stroke-dasharray="3,3"/>
+          <line x1="270" y1="50" x2="283.4" y2="163.4" stroke="rgba(240,236,228,0.1)" stroke-width="0.8" stroke-dasharray="3,3"/>
+          <line x1="330" y1="50" x2="343.4" y2="163.4" stroke="rgba(240,236,228,0.1)" stroke-width="0.8" stroke-dasharray="3,3"/>
+
+          <!-- Isometric scale line (30 deg) -->
+          <line x1="30" y1="163.4" x2="343.4" y2="163.4" stroke="#e8a824" stroke-width="2"/>
+          <text x="30" y="155" fill="#e8a824" font-size="10" font-weight="600" font-family="Source Sans 3">ISOMETRIC SCALE</text>
+
+          <!-- Isometric scale divisions (projected) -->
+          <line x1="30" y1="159" x2="30" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="30" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">0</text>
+          <line x1="103.4" y1="159" x2="103.4" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="103.4" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">20</text>
+          <line x1="163.4" y1="159" x2="163.4" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="163.4" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">40</text>
+          <line x1="223.4" y1="159" x2="223.4" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="223.4" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">60</text>
+          <line x1="283.4" y1="159" x2="283.4" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="283.4" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">80</text>
+          <line x1="343.4" y1="159" x2="343.4" y2="168" stroke="#e8a824" stroke-width="1.5"/>
+          <text x="343.4" y="182" text-anchor="middle" fill="#e8a824" font-size="9" font-family="Source Sans 3">100</text>
+
+          <!-- Factor annotation -->
+          <text x="186" y="220" text-anchor="middle" fill="rgba(240,236,228,0.5)" font-size="11" font-family="Source Sans 3">Scale factor: 0.8165</text>
+          <text x="186" y="240" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="10" font-family="Source Sans 3">Each isometric division = 0.8165 x true division</text>
+
+          <!-- 45 deg angle label -->
+          <path d="M 90 50 A 12 12 0 0 1 84.5 58.5" fill="none" stroke="rgba(240,236,228,0.3)" stroke-width="0.8"/>
+          <text x="68" y="66" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">45</text>
+        </svg>
+        <div class="diagram-label">Construction of isometric scale from true scale</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: Isometric Projection vs Isometric View -->
+  <div class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag definitions">Comparison</span>
+        <div class="slide-number">Slide 07</div>
+        <h2 class="slide-title">Isometric Projection vs Isometric View</h2>
+        <p class="slide-text">
+          These two terms are often used interchangeably but have a precise technical distinction in engineering drawing.
+        </p>
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Isometric Projection</th>
+              <th>Isometric View</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Scale Used</strong></td>
+              <td>Isometric scale (0.8165)</td>
+              <td>True scale (1:1)</td>
+            </tr>
+            <tr>
+              <td><strong>Size</strong></td>
+              <td>Smaller than actual</td>
+              <td>Larger (~122% of projection)</td>
+            </tr>
+            <tr>
+              <td><strong>Accuracy</strong></td>
+              <td>Theoretically correct</td>
+              <td>Practically preferred</td>
+            </tr>
+            <tr>
+              <td><strong>Foreshortening</strong></td>
+              <td>Applied to all axes</td>
+              <td>Not applied</td>
+            </tr>
+            <tr>
+              <td><strong>Usage</strong></td>
+              <td>Academic / theoretical</td>
+              <td>Industry practice</td>
+            </tr>
+            <tr>
+              <td><strong>Also Called</strong></td>
+              <td>Isometric drawing (strict)</td>
+              <td>Isometric drawing (common)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 300 280" fill="none">
+          <!-- Smaller cube (isometric projection) -->
+          <g transform="translate(10, 10)">
+            <polygon points="80,50 140,85 80,120 20,85" fill="rgba(232,168,36,0.08)" stroke="#e8a824" stroke-width="1.2"/>
+            <polygon points="80,120 140,85 140,155 80,175" fill="rgba(212,85,42,0.06)" stroke="#d4552a" stroke-width="1.2"/>
+            <polygon points="80,120 20,85 20,155 80,175" fill="rgba(240,236,228,0.03)" stroke="rgba(240,236,228,0.25)" stroke-width="1.2"/>
+            <text x="80" y="200" text-anchor="middle" fill="#e8a824" font-size="10" font-weight="600" font-family="Source Sans 3">PROJECTION</text>
+            <text x="80" y="214" text-anchor="middle" fill="rgba(232,168,36,0.5)" font-size="9" font-family="Source Sans 3">(Isometric scale)</text>
+            <text x="80" y="230" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="9" font-family="Source Sans 3">Size: 82 units</text>
+          </g>
+          <!-- Larger cube (isometric view) -->
+          <g transform="translate(10, -18)">
+            <polygon points="190,50 270,96 190,142 110,96" fill="rgba(232,168,36,0.12)" stroke="#e8a824" stroke-width="1.8"/>
+            <polygon points="190,142 270,96 270,186 190,218" fill="rgba(212,85,42,0.1)" stroke="#d4552a" stroke-width="1.8"/>
+            <polygon points="190,142 110,96 110,186 190,218" fill="rgba(240,236,228,0.05)" stroke="rgba(240,236,228,0.35)" stroke-width="1.8"/>
+            <text x="190" y="244" text-anchor="middle" fill="#e8a824" font-size="10" font-weight="600" font-family="Source Sans 3">VIEW</text>
+            <text x="190" y="258" text-anchor="middle" fill="rgba(232,168,36,0.5)" font-size="9" font-family="Source Sans 3">(True scale)</text>
+            <text x="190" y="274" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="9" font-family="Source Sans 3">Size: 100 units</text>
+          </g>
+          <!-- Arrow between -->
+          <line x1="118" y1="100" x2="140" y2="100" stroke="rgba(240,236,228,0.2)" stroke-width="1" marker-end="url(#arrowSmall)"/>
+          <text x="129" y="93" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">x1.22</text>
+          <defs>
+            <marker id="arrowSmall" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto"><path d="M0,0 L6,2.5 L0,5" fill="rgba(240,236,228,0.3)"/></marker>
+          </defs>
+        </svg>
+        <div class="diagram-label">Size comparison: Projection vs View</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Construction from Orthographic Views -->
+  <div class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="slide-content">
+        <span class="tag method">Method</span>
+        <div class="slide-number">Slide 08</div>
+        <h2 class="slide-title">Construction from Orthographic Views</h2>
+        <p class="slide-text">
+          The most practical skill in isometric drawing is converting given <strong>orthographic projections</strong> (front, top, and side views) into an isometric view.
+        </p>
+        <ol class="steps">
+          <li><strong>Study the orthographic views</strong> — identify the overall dimensions (L, W, H) and visualize the 3D shape</li>
+          <li><strong>Draw the isometric axes</strong> — establish the vertical axis and two 30-degree axes from a chosen origin point</li>
+          <li><strong>Construct the isometric box</strong> — using the overall length, width, and height, mark distances along the isometric axes to form the enclosing box</li>
+          <li><strong>Add details incrementally</strong> — from the front view, mark features on the right plane; from the top view, mark features on the horizontal plane</li>
+          <li><strong>Handle non-isometric lines</strong> — locate their endpoints using isometric coordinates, then connect them. Never measure directly along non-isometric lines</li>
+          <li><strong>Remove hidden lines</strong> — delete construction and hidden edges. Darken visible outlines to complete the drawing</li>
+        </ol>
+      </div>
+      <div class="slide-visual">
+        <svg class="iso-svg" viewBox="0 0 360 320" fill="none">
+          <!-- Step 1: Orthographic views (small) -->
+          <g transform="translate(0, 0)">
+            <!-- Front view box -->
+            <rect x="20" y="20" width="60" height="45" fill="none" stroke="rgba(240,236,228,0.25)" stroke-width="1" rx="2"/>
+            <text x="50" y="12" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">FRONT</text>
+            <!-- Step feature on front -->
+            <rect x="40" y="20" width="20" height="20" fill="none" stroke="rgba(232,168,36,0.4)" stroke-width="0.8"/>
+            <!-- Top view box -->
+            <rect x="90" y="20" width="60" height="45" fill="none" stroke="rgba(240,236,228,0.25)" stroke-width="1" rx="2"/>
+            <text x="120" y="12" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">TOP</text>
+            <!-- Step feature on top -->
+            <rect x="100" y="28" width="20" height="25" fill="none" stroke="rgba(232,168,36,0.4)" stroke-width="0.8"/>
+            <!-- Side view box -->
+            <rect x="160" y="20" width="45" height="45" fill="none" stroke="rgba(240,236,228,0.25)" stroke-width="1" rx="2"/>
+            <text x="182" y="12" text-anchor="middle" fill="rgba(240,236,228,0.3)" font-size="8" font-family="Source Sans 3">SIDE</text>
+
+            <!-- Arrow down -->
+            <line x1="100" y1="75" x2="100" y2="95" stroke="rgba(240,236,228,0.2)" stroke-width="1" marker-end="url(#arrowDown)"/>
+            <text x="100" y="88" text-anchor="middle" fill="rgba(240,236,228,0.25)" font-size="7" font-family="Source Sans 3">construct</text>
+          </g>
+
+          <!-- Step 2: Isometric box (construction) -->
+          <g transform="translate(20, 100)">
+            <!-- Full isometric box (dashed = construction) -->
+            <polygon points="120,30 210,82 120,134 30,82" fill="none" stroke="rgba(240,236,228,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+            <polygon points="120,134 210,82 210,162 120,194" fill="none" stroke="rgba(240,236,228,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+            <polygon points="120,134 30,82 30,162 120,194" fill="none" stroke="rgba(240,236,228,0.15)" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="120" y="16" text-anchor="middle" fill="rgba(240,236,228,0.2)" font-size="8" font-family="Source Sans 3">ISOMETRIC BOX</text>
+
+            <!-- Step feature - solid lines on right face -->
+            <line x1="150" y1="108" x2="150" y2="82" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="150" y1="82" x2="180" y2="99" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="180" y1="99" x2="180" y2="141" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="180" y1="141" x2="150" y2="158" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="150" y1="158" x2="150" y2="134" stroke="#e8a824" stroke-width="1.5"/>
+
+            <!-- Step feature on top -->
+            <line x1="120" y1="82" x2="150" y2="82" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="150" y1="82" x2="120" y2="108" stroke="#e8a824" stroke-width="1.5"/>
+            <line x1="120" y1="108" x2="90" y2="108" stroke="#e8a824" stroke-width="1.5"/>
+
+            <!-- Final solid outline (key visible edges) -->
+            <polygon points="120,30 210,82 210,162 120,194 30,162 30,82" fill="none" stroke="rgba(240,236,228,0.5)" stroke-width="1.8"/>
+            <polygon points="120,30 210,82 120,134 30,82" fill="rgba(232,168,36,0.04)" stroke="rgba(240,236,228,0.5)" stroke-width="1.8"/>
+            <line x1="120" y1="134" x2="120" y2="194" stroke="rgba(240,236,228,0.5)" stroke-width="1.8"/>
+            <line x1="30" y1="82" x2="30" y2="162" stroke="rgba(240,236,228,0.5)" stroke-width="1.8"/>
+
+            <!-- Dimension labels -->
+            <text x="240" y="82" fill="#d4552a" font-size="9" font-family="Source Sans 3">L</text>
+            <text x="240" y="140" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">H</text>
+            <text x="120" y="148" text-anchor="middle" fill="rgba(240,236,228,0.4)" font-size="9" font-family="Source Sans 3">W</text>
+          </g>
+
+          <defs>
+            <marker id="arrowDown" markerWidth="6" markerHeight="5" refX="3" refY="5" orient="auto"><path d="M0,0 L3,5 L6,0" fill="rgba(240,236,228,0.2)"/></marker>
+          </defs>
+        </svg>
+        <div class="diagram-label">From orthographic views to isometric view</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<nav class="nav-bar" aria-label="Slide navigation">
+  <button class="nav-btn" id="prevBtn" aria-label="Previous slide" disabled>
+    <i class="fas fa-chevron-left"></i>
+  </button>
+  <div class="progress-dots" id="progressDots"></div>
+  <span class="slide-counter" id="slideCounter">1 / 8</span>
+  <button class="nav-btn" id="nextBtn" aria-label="Next slide">
+    <i class="fas fa-chevron-right"></i>
+  </button>
+</nav>
+
+<script>
+  // ===== Background Isometric Grid =====
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let gridAngle = 0;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  function drawGrid() {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const spacing = 50;
+    const alpha = 0.035;
+    ctx.strokeStyle = `rgba(240, 236, 228, ${alpha})`;
+    ctx.lineWidth = 0.5;
+
+    // 30-degree lines going right-down
+    for (let i = -h; i < w + h; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i - h * 0.577, h);
+      ctx.stroke();
+    }
+
+    // 30-degree lines going left-down
+    for (let i = -h; i < w + h; i += spacing) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i + h * 0.577, h);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(drawGrid);
+  }
+  drawGrid();
+
+  // ===== Slide Navigation =====
+  const slides = document.querySelectorAll('.slide');
+  const totalSlides = slides.length;
+  let currentSlide = 0;
+  let isTransitioning = false;
+
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const slideCounter = document.getElementById('slideCounter');
+  const dotsContainer = document.getElementById('progressDots');
+
+  // Create dots
+  for (let i = 0; i < totalSlides; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+    dot.addEventListener('click', () => goToSlide(i));
+    dotsContainer.appendChild(dot);
+  }
+
+  function goToSlide(index) {
+    if (isTransitioning || index === currentSlide || index < 0 || index >= totalSlides) return;
+    isTransitioning = true;
+
+    const direction = index > currentSlide ? 1 : -1;
+    const oldSlide = slides[currentSlide];
+    const newSlide = slides[index];
+
+    // Remove previous exit classes
+    oldSlide.classList.remove('exit-left');
+    // Force reflow
+    void oldSlide.offsetWidth;
+
+    // Exit old slide
+    if (direction > 0) {
+      oldSlide.classList.add('exit-left');
+    }
+    oldSlide.classList.remove('active');
+
+    // Prepare new slide entry
+    newSlide.style.transition = 'none';
+    if (direction > 0) {
+      newSlide.style.transform = 'translateX(80px) scale(0.96)';
+    } else {
+      newSlide.style.transform = 'translateX(-80px) scale(0.96)';
+    }
+    newSlide.style.opacity = '0';
+    void newSlide.offsetWidth;
+
+    // Animate new slide in
+    newSlide.style.transition = '';
+    newSlide.classList.add('active');
+    newSlide.style.transform = '';
+    newSlide.style.opacity = '';
+
+    currentSlide = index;
+    updateUI();
+
+    setTimeout(() => {
+      oldSlide.classList.remove('exit-left');
+      isTransitioning = false;
+    }, 700);
+  }
+
+  function updateUI() {
+    prevBtn.disabled = currentSlide === 0;
+    nextBtn.disabled = currentSlide === totalSlides - 1;
+    slideCounter.textContent = `${currentSlide + 1} / ${totalSlides}`;
+
+    const dots = dotsContainer.querySelectorAll('.dot');
+    dots.forEach((d, i) => {
+      d.classList.toggle('active', i === currentSlide);
+    });
+  }
+
+  prevBtn.addEventListener('click', () => goToSlide(currentSlide - 1));
+  nextBtn.addEventListener('click', () => goToSlide(currentSlide + 1));
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      goToSlide(currentSlide + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      goToSlide(currentSlide - 1);
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      goToSlide(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      goToSlide(totalSlides - 1);
+    }
+  });
+
+  // Touch/swipe support
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) goToSlide(currentSlide + 1);
+      else goToSlide(currentSlide - 1);
+    }
+  }, { passive: true });
+
+  // Mouse wheel navigation (debounced)
+  let wheelTimeout = null;
+  document.addEventListener('wheel', (e) => {
+    if (wheelTimeout) return;
+    wheelTimeout = setTimeout(() => { wheelTimeout = null; }, 800);
+    if (e.deltaY > 30) goToSlide(currentSlide + 1);
+    else if (e.deltaY < -30) goToSlide(currentSlide - 1);
+  }, { passive: true });
+</script>
+
+</body>
+</html>
